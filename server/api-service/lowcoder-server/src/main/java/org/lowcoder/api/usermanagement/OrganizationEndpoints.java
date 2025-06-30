@@ -98,6 +98,13 @@ public interface OrganizationEndpoints
             @RequestParam(required = false, defaultValue = "1") int pageNum,
             @RequestParam(required = false, defaultValue = "1000") int pageSize);
 
+	@GetMapping("/{orgId}/{searchMemberName}/{searchGroupId}/members")
+	public Mono<ResponseView<OrgMemberListView>> getOrgMembersForSearch(@PathVariable String orgId,
+		   @PathVariable String searchMemberName,
+		   @PathVariable String searchGroupId,
+		   @RequestParam(required = false, defaultValue = "1") int pageNum,
+		   @RequestParam(required = false, defaultValue = "1000") int pageSize);
+
 	@Operation(
 			tags = TAG_ORGANIZATION_MEMBERS,
 		    operationId = "updateOrganizationMemberRole",
@@ -181,8 +188,23 @@ public interface OrganizationEndpoints
 	@GetMapping("/{orgId}/api-usage")
 	public Mono<ResponseView<Long>> getOrgApiUsageCount(@PathVariable String orgId, @RequestParam(required = false) Boolean lastMonthOnly);
 
+	@Operation(
+			tags = TAG_ORGANIZATION_MANAGEMENT,
+			operationId = "updateOrganizationSlug",
+			summary = "Update Organization URL Path Slug",
+			description = "The slug is used to build a friendly reader URL for Apps. The Organization (workspace) get a part of this URL with an own slug."
+	)
 	@PutMapping("/{orgId}/slug")
     Mono<ResponseView<Organization>> updateSlug(@PathVariable String orgId, @RequestBody String slug);
+
+	@Operation(
+			tags = TAG_ORGANIZATION_MANAGEMENT,
+			operationId = "getOrganization",
+			summary = "Get Organization by ID",
+			description = "Retrieve details of a specific Organization within Lowcoder using its unique ID."
+	)
+	@GetMapping("/{orgId}")
+	public Mono<ResponseView<Organization>> getOrganization(@PathVariable String orgId, @RequestParam(required = false) Boolean withDeleted);
 
     public record UpdateOrgCommonSettingsRequest(String key, Object value) {
 

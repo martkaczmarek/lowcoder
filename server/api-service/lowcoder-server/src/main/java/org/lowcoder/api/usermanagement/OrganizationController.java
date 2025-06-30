@@ -12,6 +12,7 @@ import org.lowcoder.api.usermanagement.view.UpdateOrgRequest;
 import org.lowcoder.api.usermanagement.view.UpdateRoleRequest;
 import org.lowcoder.api.util.BusinessEventPublisher;
 import org.lowcoder.api.util.GidService;
+import org.lowcoder.domain.organization.model.OrgMember;
 import org.lowcoder.domain.organization.model.Organization;
 import org.lowcoder.domain.organization.model.Organization.OrganizationCommonSettings;
 import org.lowcoder.domain.organization.service.OrgMemberService;
@@ -19,12 +20,18 @@ import org.lowcoder.domain.organization.service.OrganizationService;
 import org.lowcoder.domain.plugin.DatasourceMetaInfo;
 import org.lowcoder.domain.plugin.service.DatasourceMetaInfoService;
 import org.lowcoder.domain.user.service.UserService;
+import org.lowcoder.sdk.config.CommonConfig;
+import org.lowcoder.sdk.constants.WorkspaceMode;
+import org.lowcoder.sdk.exception.BizError;
+import org.lowcoder.sdk.exception.BizException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Comparator;
 import java.util.List;
 
 import static org.lowcoder.api.util.Pagination.fluxToPageResponseView;
@@ -47,15 +54,30 @@ public class OrganizationController implements OrganizationEndpoints
     private OrganizationService organizationService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private CommonConfig commonConfig;
 
     @Override
     public Mono<PageResponseView<?>> getOrganizationByUser(@PathVariable String email,
                                                            @RequestParam(required = false, defaultValue = "1") Integer pageNum,
                                                            @RequestParam(required = false, defaultValue = "0") Integer pageSize) {
-        var flux = userService.findByEmailDeep(email).flux().flatMap(user -> orgMemberService.getAllActiveOrgs(user.getId()))
-                .flatMap(orgMember -> organizationService.getById(orgMember.getOrgId()))
-                .map(OrgView::new).cache();
-        return fluxToPageResponseView(pageNum, pageSize, flux);
+        Flux<OrgView> flux;
+        if (commonConfig.getWorkspace().getMode() == WorkspaceMode.SAAS) {
+            flux = userService.findByEmailDeep(email).flux()
+                    .flatMap(user -> orgMemberService.getAllActiveOrgs(user.getId()))
+                    .flatMap(orgMember -> organizationService.getById(orgMember.getOrgId()))
+                    .map(OrgView::new)
+                    .cache();
+        } else {
+            flux = organizationService.getOrganizationInEnterpriseMode().flux().map(OrgView::new).cache();
+        }
+        var newflux = flux.sort((OrgView o1, OrgView o2) -> {
+            if (o1.getOrgName() == null || o2.getOrgName() == null) {
+                return 0;
+            }
+            return o1.getOrgName().compareTo(o2.getOrgName());
+        });
+        return fluxToPageResponseView(pageNum, pageSize, newflux);
     }
 
     @Override
@@ -94,6 +116,16 @@ public class OrganizationController implements OrganizationEndpoints
             @RequestParam(required = false, defaultValue = "1000") int pageSize) {
         return gidService.convertOrganizationIdToObjectId(orgId).flatMap(id ->
             orgApiService.getOrganizationMembers(id, pageNum, pageSize)
+                .map(ResponseView::success));
+    }
+    @Override
+    public Mono<ResponseView<OrgMemberListView>> getOrgMembersForSearch(@PathVariable String orgId,
+            @PathVariable String searchMemberName,
+            @PathVariable String searchGroupId,
+            @RequestParam(required = false, defaultValue = "1") int pageNum,
+            @RequestParam(required = false, defaultValue = "1000") int pageSize) {
+        return gidService.convertOrganizationIdToObjectId(orgId).flatMap(id ->
+            orgApiService.getOrganizationMembersForSearch(id, searchMemberName, searchGroupId, pageNum, pageSize)
                 .map(ResponseView::success));
     }
 
@@ -169,6 +201,14 @@ public class OrganizationController implements OrganizationEndpoints
     @Override
     public Mono<ResponseView<Organization>> updateSlug(@PathVariable String orgId, @RequestBody String slug) {
         return organizationService.updateSlug(orgId, slug)
+                .map(ResponseView::success);
+    }
+
+    @Override
+    public Mono<ResponseView<Organization>> getOrganization(@PathVariable String orgId, @RequestParam(required = false) Boolean withDeleted) {
+        return gidService.convertOrganizationIdToObjectId(orgId)
+                .flatMap(id -> Boolean.TRUE.equals(withDeleted) ? organizationService.getByIdWithDeleted(id) : organizationService.getById(id))
+                .switchIfEmpty(Mono.error(new BizException(BizError.ORGANIZATION_NOT_FOUND, "ORGANIZATION_NOT_FOUND")))
                 .map(ResponseView::success);
     }
 

@@ -87,7 +87,7 @@ export { ReactComponent as ImportAppIcon } from "./v1/icon-app-import.svg";
 export { ReactComponent as ImportIcon } from "./v1/icon-import.svg";
 export { ReactComponent as ImportIconV2 } from "./v1/icon-import-v2.svg";
 export { ReactComponent as DatasourceIcon } from "./v1/icon-datasource.svg";
-export { ReactComponent as QueryLibraryIcon } from "./v1/icon-query-library.svg";
+export { ReactComponent as QueryLibraryIcon } from "./remix/braces-line.svg";
 export { ReactComponent as TransformerIcon } from "./v1/icon-transformer.svg";
 export { ReactComponent as TempStateIcon } from "./v1/icon-temp-state.svg";
 export { ReactComponent as IconDep } from "./v1/icon-style-dep.svg";
@@ -132,7 +132,11 @@ export { ReactComponent as APIDocsIcon } from "./remix/instance-line.svg";
 export { ReactComponent as SubscriptionIcon } from "./remix/award-fill.svg";
 export { ReactComponent as SupportIcon } from "./remix/user-heart-line.svg";
 // export { ReactComponent as AllAppIcon } from "./v1/icon-all-app.svg";
-
+// EE 
+export { ReactComponent as EnvironmentsIcon } from "./remix/git-branch-line.svg"; 
+export { ReactComponent as UsageStatisticsIcon } from "./remix/line-chart-line.svg";
+export { ReactComponent as AutitLogsIcon } from "./remix/user-community-line.svg";
+export { ReactComponent as BrandingIcon } from "./remix/paint-brush-line.svg";
 
 // Data Sources
 export { ReactComponent as MysqlIcon } from "./v1/icon-query-MySQL.svg";
@@ -145,6 +149,8 @@ export { ReactComponent as OracleIcon } from "./v1/icon-query-OracleDB.svg";
 export { ReactComponent as ClickHouseIcon } from "./v1/icon-query-ClickHouse.svg";
 export { ReactComponent as GoogleSheetsIcon } from "./v1/icon-query-GoogleSheets.svg";
 export { ReactComponent as GraphqlIcon } from "./v1/icon-query-Graphql.svg";
+export { ReactComponent as AlasqlIcon } from "./remix/database-2-line.svg";
+export { ReactComponent as StreamApiIcon } from "./remix/rfid-line.svg";
 export { ReactComponent as SnowflakeIcon } from "./v1/icon-query-snowflake.svg";
 export { ReactComponent as MariaDBIcon } from "./v1/icon-query-MariaDB.svg";
 
@@ -219,8 +225,6 @@ export { ReactComponent as BorderWidthIcon } from "./remix/space.svg";
 export { ReactComponent as BorderStyleIcon } from "./remix/separator.svg";
 export { ReactComponent as RotationIcon } from "./remix/clockwise-line.svg";
 export { ReactComponent as BorderRadiusIcon } from "./remix/rounded-corner.svg";
-
-// Falk: TODO
 export { ReactComponent as ShadowIcon } from "./remix/shadow-line.svg";
 export { ReactComponent as OpacityIcon } from "./remix/contrast-drop-2-line.svg";
 export { ReactComponent as AnimationIcon } from "./remix/loader-line.svg";
@@ -251,9 +255,16 @@ export { ReactComponent as RecyclerIcon } from "./remix/delete-bin-line.svg";
 export { ReactComponent as MarketplaceIcon } from "./v1/icon-application-marketplace.svg";
 export { ReactComponent as FavoritesIcon } from "./v1/icon-application-favorites.svg";
 export { ReactComponent as HomeSettingIcon } from "./remix/settings-4-line.svg";
-export { ReactComponent as EnterpriseIcon } from "./remix/earth-line.svg";
+export { ReactComponent as EnterpriseIcon } from "./remix/shield-star-line.svg";
 export { ReactComponent as VerticalIcon } from "./remix/vertical.svg";
 export { ReactComponent as HorizontalIcon } from "./remix/horizontal.svg";
+
+// Social Sharing
+export { ReactComponent as TwitterIcon } from "./remix/twitter-x-line.svg";
+export { ReactComponent as LinkedInIcon } from "./remix/linkedin-box-fill.svg";
+export { ReactComponent as FacebookIcon } from "./remix/facebook-circle-fill.svg";
+export { ReactComponent as MediumIcon } from "./remix/medium-fill.svg";
+export { ReactComponent as RedditIcon } from "./remix/reddit-line.svg";
 
 
 // components
@@ -345,6 +356,7 @@ export { ReactComponent as VideoScreenshareCompIconSmall } from "./v2/screen-sha
 export { ReactComponent as SignatureCompIconSmall } from "./v2/signature-s.svg";
 export { ReactComponent as StepCompIconSmall } from "./v2/steps-s.svg";
 
+
 export { ReactComponent as CandlestickChartCompIconSmall } from "./v2/candlestick-chart-s.svg"; // new
 export { ReactComponent as FunnelChartCompIconSmall } from "./v2/funnel-chart-s.svg"; // new
 export { ReactComponent as GaugeChartCompIconSmall } from "./v2/gauge-chart-s.svg"; // new
@@ -364,6 +376,10 @@ export { ReactComponent as PivotTableCompIconSmall } from "./v2/pivot-table-s.sv
 export { ReactComponent as TurnstileCaptchaCompIconSmall } from "./v2/turnstile-captcha-s.svg"; // new
 export { ReactComponent as GanttCompIconSmall } from "./v2/gantt-chart-s.svg"; // new
 
+export { ReactComponent as PieChartCompIconSmall } from "./v2/pie-chart-s.svg"; // new
+export { ReactComponent as BarChartCompIconSmall } from "./v2/bar-chart-s.svg"; // new
+export { ReactComponent as LineChartCompIconSmall } from "./v2/line-chart-s.svg"; // new
+export { ReactComponent as ScatterChartCompIconSmall } from "./v2/scatter-chart-s.svg"; // new
 
 // medium
 export { ReactComponent as AudioCompIcon } from "./v2/audio-player-m.svg";
@@ -464,6 +480,11 @@ export { ReactComponent as SunburstChartCompIcon } from "./v2/sunburst-chart-m.s
 export { ReactComponent as ThemeriverChartCompIcon } from "./v2/themeriver-chart-m.svg";
 export { ReactComponent as TreeChartCompIcon } from "./v2/tree-chart-m.svg";
 export { ReactComponent as TreemapChartCompIcon } from "./v2/treemap-chart-m.svg";
+
+export { ReactComponent as PieChartCompIcon } from "./v2/pie-chart-m.svg"; // new
+export { ReactComponent as BarChartCompIcon } from "./v2/bar-chart-m.svg"; // new
+export { ReactComponent as LineChartCompIcon } from "./v2/line-chart-m.svg"; // new
+export { ReactComponent as ScatterChartCompIcon } from "./v2/scatter-chart-m.svg"; // new
 
 export { ReactComponent as BPMNEditorCompIcon } from "./v2/bpmn-editor-m.svg";
 export { ReactComponent as GeoMapChartsCompIcon } from "./v2/geomap-charts-m.svg";

@@ -13,8 +13,12 @@ import { SUPPORT_URL } from "constants/routesURL";
 import { TacoMarkDown } from "lowcoder-design";
 import remarkGfm from 'remark-gfm';
 import { contrastColor } from "comps/controls/styleControlConstants";
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import 'react-quill-new/dist/quill.snow.css';
+import { useCurrentUser } from "util/currentUser";
+import React from "react";
+
+const ReactQuillEditor = React.lazy(() => import("react-quill-new"));
+
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -270,7 +274,7 @@ export function SupportDetail() {
   const [isAddingComment, setIsAddingComment] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [fileList, setFileList] = useState<any[]>([]);
-  
+  const user = useCurrentUser();
 
   // State for description edit
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
@@ -454,7 +458,7 @@ export function SupportDetail() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
               /> */}
-              <ReactQuill
+              <ReactQuillEditor
                 theme="snow"
                 value={newDescription}
                 onChange={setNewDescription}
@@ -538,8 +542,8 @@ export function SupportDetail() {
               renderItem={(comment: any) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar src={comment.author.avatarUrls['48x48']} />}
-                    title={comment.author.displayName}
+                    avatar={<Avatar src={comment.author.accountId == "712020:a25c863c-bd24-456e-aa3f-2335c18e0235" ? user.avatarUrl :  comment.author.avatarUrls['48x48']} />} 
+                    title={comment.author.accountId == "712020:a25c863c-bd24-456e-aa3f-2335c18e0235" ? trans("support.selfUser") : comment.author.displayName}
                     description={
                       <>
                         <div>

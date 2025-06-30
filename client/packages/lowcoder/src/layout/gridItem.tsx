@@ -113,8 +113,8 @@ export const GridItem = React.memo((props: GridItemProps) => {
       maxRows: props.maxRows,
     }, props.x, props.y, props.w, props.h)},
     [
-      props.margin,
-      props.containerPadding,
+      JSON.stringify(props.margin),
+      JSON.stringify(props.containerPadding),
       props.containerWidth,
       props.cols,
       props.rowHeight,
@@ -123,7 +123,6 @@ export const GridItem = React.memo((props: GridItemProps) => {
       props.y,
       props.w,
       props.h,
-      calcGridItemPosition,
     ]
   );
 
@@ -134,6 +133,21 @@ export const GridItem = React.memo((props: GridItemProps) => {
 
   // record the real height of the comp content
   const itemHeightRef = useRef<number | undefined>(undefined);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clear any pending state
+      setResizing(undefined);
+      setDragging(undefined);
+      
+      // Clear refs
+      itemHeightRef.current = undefined;
+      
+      // Clear any dragging data
+      // draggingUtils.clearData();
+    };
+  }, []);
 
   const onDragStart = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -230,8 +244,8 @@ export const GridItem = React.memo((props: GridItemProps) => {
       y: yy,
     });
   }, [
-    resizing,
-    dragging,
+    JSON.stringify(resizing),
+    JSON.stringify(dragging),
     props.cols,
     props.maxRows,
     props.x,
@@ -245,13 +259,6 @@ export const GridItem = React.memo((props: GridItemProps) => {
     props.maxW,
     position.left,
     position.top,
-    calcResizeXY,
-    getDraggingNewPosition,
-    calcXY,
-    calcWH,
-    setResizing,
-    setDragging,
-    clamp,
   ]);
 
    /**
@@ -417,7 +424,7 @@ export const GridItem = React.memo((props: GridItemProps) => {
       itemHeightRef.current = height;
     }
     adjustWrapperHeight(width, height);
-  }, [itemHeightRef, adjustWrapperHeight]);
+  }, [itemHeightRef.current, adjustWrapperHeight]);
 
   /**
    * re-calculate the occupied gird-cells.
@@ -427,7 +434,7 @@ export const GridItem = React.memo((props: GridItemProps) => {
    */
   const onWrapperSizeChange = useCallback(() => {
     adjustWrapperHeight(undefined, itemHeightRef.current);
-  }, [itemHeightRef, adjustWrapperHeight]);
+  }, [itemHeightRef.current, adjustWrapperHeight]);
 
   const mixinChildWrapper = useCallback((child: React.ReactElement): React.ReactElement => {
     const {
@@ -535,6 +542,21 @@ export const GridItem = React.memo((props: GridItemProps) => {
   
   const pos = useMemo(calcPosition, [calcPosition]);
   
+  const transform = useMemo(() => {
+    return setTransform(
+      pos,
+      props.name,
+      props.autoHeight,
+      props.hidden,
+      Boolean(draggingUtils.isDragging())
+    )
+  }, [
+    JSON.stringify(pos),
+    props.name,
+    props.autoHeight,
+    props.hidden
+  ]);
+
   const render = useMemo(() => {
     let child = React.Children.only(children);
     // Create the child element. We clone the existing element but modify its className and style.
@@ -563,13 +585,7 @@ export const GridItem = React.memo((props: GridItemProps) => {
         cssTransforms: true,
       }),
       style: {
-        ...setTransform(
-          pos,
-          props.name,
-          props.autoHeight,
-          props.hidden,
-          Boolean(draggingUtils.isDragging())
-        ),
+        ...transform,
         opacity: layoutHide ? 0 : undefined,
         pointerEvents: layoutHide ? "none" : "auto",
       },
@@ -580,11 +596,12 @@ export const GridItem = React.memo((props: GridItemProps) => {
     newChild = mixinDraggable(newChild, isDraggable);
     return newChild;
   }, [
-    pos,
+    JSON.stringify(transform),
+    JSON.stringify(pos),
     children,
     elementRef,
-    resizing,
-    dragging,
+    Boolean(resizing),
+    Boolean(dragging),
     isDraggable,
     layoutHide,
     zIndex,
@@ -593,8 +610,6 @@ export const GridItem = React.memo((props: GridItemProps) => {
     props.className,
     props.style,
     props.static,
-    props.autoHeight,
-    props.hidden,
     setTransform,
     mixinChildWrapper,
     mixinResizable,

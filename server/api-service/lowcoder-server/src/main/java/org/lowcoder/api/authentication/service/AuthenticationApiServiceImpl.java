@@ -23,6 +23,9 @@ import org.lowcoder.domain.authentication.AuthenticationService;
 import org.lowcoder.domain.authentication.FindAuthConfig;
 import org.lowcoder.domain.authentication.context.AuthRequestContext;
 import org.lowcoder.domain.authentication.context.FormAuthRequestContext;
+import org.lowcoder.domain.group.model.GroupMember;
+import org.lowcoder.domain.group.service.GroupMemberService;
+import org.lowcoder.domain.organization.model.MemberRole;
 import org.lowcoder.domain.organization.model.OrgMember;
 import org.lowcoder.domain.organization.model.Organization;
 import org.lowcoder.domain.organization.model.OrganizationDomain;
@@ -32,8 +35,11 @@ import org.lowcoder.domain.user.model.*;
 import org.lowcoder.domain.user.service.UserService;
 import org.lowcoder.sdk.auth.AbstractAuthConfig;
 import org.lowcoder.sdk.config.AuthProperties;
+import org.lowcoder.sdk.config.CommonConfig;
+import org.lowcoder.sdk.constants.WorkspaceMode;
 import org.lowcoder.sdk.exception.BizError;
 import org.lowcoder.sdk.exception.BizException;
+import org.lowcoder.sdk.models.HasIdAndAuditing;
 import org.lowcoder.sdk.util.CookieHelper;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -69,6 +75,8 @@ public class AuthenticationApiServiceImpl implements AuthenticationApiService {
     private final OrgMemberService orgMemberService;
     private final JWTUtils jwtUtils;
     private final AuthProperties authProperties;
+    private final CommonConfig commonConfig;
+    private final GroupMemberService groupMemberService;
 
     @Override
     public Mono<AuthUser> authenticateByForm(String loginId, String password, String source, boolean register, String authId, String orgId) {
@@ -90,10 +98,23 @@ public class AuthenticationApiServiceImpl implements AuthenticationApiService {
                 })
                 .flatMap(findAuthConfig -> {
                     context.setAuthConfig(findAuthConfig.authConfig());
+                    // Check if email/password is superadmin before checking EMAIL provider enable
                     if (findAuthConfig.authConfig().getSource().equals("EMAIL")) {
-                        if(StringUtils.isBlank(context.getOrgId())) {
+                        if (StringUtils.isBlank(context.getOrgId())) {
                             context.setOrgId(Optional.ofNullable(findAuthConfig.organization()).map(Organization::getId).orElse(null));
                         }
+                        // --- Superadmin check start ---
+                        if (context instanceof FormAuthRequestContext formContext) {
+                            String email = formContext.getLoginId();
+                            String password = formContext.getPassword();
+                            String superAdminEmail = commonConfig.getSuperAdmin().getUserName();
+                            String superAdminPassword = commonConfig.getSuperAdmin().getPassword();
+                            if (StringUtils.equalsIgnoreCase(email, superAdminEmail) && StringUtils.equals(password, superAdminPassword)) {
+                                // Allow superadmin login even if EMAIL provider is disabled
+                                return Mono.just(findAuthConfig);
+                            }
+                        }
+                        // --- Superadmin check end ---
                         if(!findAuthConfig.authConfig().getEnable()) {
                             return Mono.error(new BizException(EMAIL_PROVIDER_DISABLED, "EMAIL_PROVIDER_DISABLED"));
                         }
@@ -139,7 +160,7 @@ public class AuthenticationApiServiceImpl implements AuthenticationApiService {
                     return Mono.empty();
                 })
                 // after login
-                .delayUntil(user -> onUserLogin(authUser.getOrgId(), user, authUser.getSource()))
+                .delayUntil(user -> onUserLogin(authUser.getOrgId(), user, authUser.getSource(), authUser.getGroupId()))
                 // process invite
                 .delayUntil(__ -> {
                     if (StringUtils.isBlank(invitationId)) {
@@ -237,11 +258,24 @@ public class AuthenticationApiServiceImpl implements AuthenticationApiService {
         return organizationService.createDefault(user, isSuperAdmin).then();
     }
 
-    protected Mono<Void> onUserLogin(String orgId, User user, String source) {
-        if (StringUtils.isEmpty(orgId)) {
-            return Mono.empty();
+    protected Mono<Void> onUserLogin(String orgId, User user, String source, String groupIdToJoin) {
+        Mono<String> orgMono;
+        if(commonConfig.getWorkspace().getMode() == WorkspaceMode.ENTERPRISE) {
+            orgMono = organizationService.getOrganizationInEnterpriseMode().map(HasIdAndAuditing::getId);
+        } else {
+            if (StringUtils.isEmpty(orgId)) {
+                return Mono.empty();
+            }
+            orgMono = Mono.just(orgId);
         }
-        return orgApiService.tryAddUserToOrgAndSwitchOrg(orgId, user.getId()).then();
+        Mono<GroupMember> groupMember = groupIdToJoin == null ? Mono.empty() : groupMemberService.getGroupMember(groupIdToJoin, user.getId()).switchIfEmpty(Mono.defer(() -> {
+            GroupMember groupMember1 = GroupMember.builder()
+                    .groupId(groupIdToJoin)
+                    .userId(user.getId())
+                    .build();
+            return groupMemberService.addMember(orgId, groupIdToJoin, user.getId(), MemberRole.MEMBER).thenReturn(groupMember1);
+        }));
+        return orgMono.flatMap(orgId2 -> orgApiService.tryAddUserToOrgAndSwitchOrg(orgId2, user.getId())).then(groupMember).then();
     }
 
     @Override
@@ -327,7 +361,10 @@ public class AuthenticationApiServiceImpl implements AuthenticationApiService {
         return sessionUserService.getVisitor()
                 .flatMapIterable(user ->
                         new ArrayList<>(user.getApiKeysList())
-                );
+                )
+                .doOnNext(apiKey -> {
+                    apiKey.setToken(apiKey.getToken().substring(0, 6) + "*************" + apiKey.getToken().substring(apiKey.getToken().length() - 6));
+                });
     }
 
     private Mono<Void> removeTokensByAuthId(String authId) {

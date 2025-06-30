@@ -1,4 +1,4 @@
-import { default as Table, TableProps } from "antd/es/table";
+import { default as Table, TableProps, ColumnType } from "antd/es/table";
 import { TableCellContext, TableRowContext } from "comps/comps/tableComp/tableContext";
 import { TableToolbar } from "comps/comps/tableComp/tableToolbarComp";
 import { RowColorViewType, RowHeightViewType, TableEventOptionValues } from "comps/comps/tableComp/tableTypes";
@@ -243,7 +243,7 @@ const TableWrapper = styled.div<{
               position: -webkit-sticky;
               // top: ${props.$fixedToolbar ? '47px' : '0'};
               top: 0;
-              z-index: 99;
+              z-index: 2;
             `
           }
           > tr {
@@ -256,7 +256,14 @@ const TableWrapper = styled.div<{
             color: ${(props) => props.$headerStyle.headerText};
             // border-inline-end: ${(props) => `${props.$headerStyle.borderWidth} solid ${props.$headerStyle.border}`} !important;
             
-
+            /* Proper styling for fixed header cells */
+            &.ant-table-cell-fix-left, &.ant-table-cell-fix-right {
+              z-index: 1; 
+              background: ${(props) => props.$headerStyle.headerBackground};
+            }
+            
+          
+            
             > div {
               margin: ${(props) => props.$headerStyle.margin};
 
@@ -295,7 +302,27 @@ const TableWrapper = styled.div<{
 
         td {
           padding: 0px 0px;
-          // ${(props) => props.$showHRowGridBorder ?'border-bottom: 1px solid #D7D9E0 !important;': `border-bottom: 0px;`}
+          // ${(props) => props.$showHRowGridBorder ? 'border-bottom: 1px solid #D7D9E0 !important;': `border-bottom: 0px;`}
+          
+          /* Proper styling for Fixed columns in the table body */
+          &.ant-table-cell-fix-left, &.ant-table-cell-fix-right {
+            z-index: 1; 
+            background: inherit;
+            background-color: ${(props) => props.$style.background};
+            transition: background-color 0.3s;
+          }
+          
+        }
+        
+        /* Fix for selected and hovered rows */
+        tr.ant-table-row-selected td.ant-table-cell-fix-left,
+        tr.ant-table-row-selected td.ant-table-cell-fix-right {
+          background-color: ${(props) => props.$rowStyle?.selectedRowBackground || '#e6f7ff'} !important;
+        }
+        
+        tr.ant-table-row:hover td.ant-table-cell-fix-left,
+        tr.ant-table-row:hover td.ant-table-cell-fix-right {
+          background-color: ${(props) => props.$rowStyle?.hoverRowBackground || '#f5f5f5'} !important;
         }
 
         thead > tr:first-child {
@@ -428,7 +455,7 @@ const TableTd = styled.td<{
       }
 
       &:active {
-        color: ${(props) => props.$linkStyle?.activeText}};
+        color: ${(props) => props.$linkStyle?.activeText};
       }
     }
   }
@@ -457,40 +484,47 @@ const TableTdLoading = styled(Skeleton.Button)<SkeletonButtonProps & {
 
 const ResizeableTitle = (props: any) => {
   const { onResize, onResizeStop, width, viewModeResizable, ...restProps } = props;
-  const [widthChild, setWidthChild] = useState(0);
-  const elementRef = useRef(null);
+  const [childWidth, setChildWidth] = useState(0);
+  const resizeRef = useRef<HTMLDivElement>(null);
   const isUserViewMode = useUserViewMode();
 
-  const setChildWidth = () => {
-    if (width && width > 0) {
-      // There is width, no need for childWidth
-      return;
+  const updateChildWidth = useCallback(() => {
+    if (resizeRef.current) {
+      const width = resizeRef.current.getBoundingClientRect().width;
+      setChildWidth(width);
     }
-    setWidthChild((elementRef.current as any).getBoundingClientRect().width);
-  };
-
-  useEffect(() => {
-    if (!elementRef.current) {
-      return;
-    }
-    setChildWidth();
   }, []);
 
-  // the multi select column and expand column should not be resizable
+  useEffect(() => {
+    updateChildWidth();
+    const resizeObserver = new ResizeObserver(() => {
+      updateChildWidth();
+    });
+
+    if (resizeRef.current) {
+      resizeObserver.observe(resizeRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [updateChildWidth]);
+
   const isNotDataColumn = _.isNil(restProps.title);
-  if ((isUserViewMode && !viewModeResizable) || isNotDataColumn) {
-    return <TableTh ref={elementRef} {...restProps} width={width} />;
+  if ((isUserViewMode && !restProps.viewModeResizable) || isNotDataColumn) {
+    return <TableTh ref={resizeRef} {...restProps} width={width} />;
   }
 
   return (
     <Resizable
-      width={width > 0 ? width : widthChild}
+      width={width > 0 ? width : childWidth}
       height={0}
-      onResize={(e: React.SyntheticEvent, { size }: { size: { width: number } }) =>
-        onResize(size.width)
-      }
-      onResizeStart={(e) => {
-        setChildWidth();
+      onResize={(e: React.SyntheticEvent, { size }: { size: { width: number } }) => {
+        e.stopPropagation();
+        onResize(size.width);
+      }}
+      onResizeStart={(e: React.SyntheticEvent) => {
+        updateChildWidth();
         e.stopPropagation();
         e.preventDefault();
       }}
@@ -506,7 +540,7 @@ const ResizeableTitle = (props: any) => {
         />
       )}
     >
-      <TableTh ref={elementRef} {...restProps} title="" />
+      <TableTh ref={resizeRef} {...restProps} title="" />
     </Resizable>
   );
 };
@@ -524,7 +558,7 @@ type CustomTableProps<RecordType> = Omit<TableProps<RecordType>, "components" | 
   onCellClick: (columnName: string, dataIndex: string) => void;
 };
 
-function TableCellView(props: {
+const TableCellView = React.memo((props: {
   record: RecordType;
   title: string;
   rowColorFn: RowColorViewType;
@@ -538,7 +572,7 @@ function TableCellView(props: {
   tableSize?: string;
   autoHeight?: boolean;
   loading?: boolean;
-}) {
+}) => {
   const {
     record,
     title,
@@ -558,10 +592,10 @@ function TableCellView(props: {
 
   const [editing, setEditing] = useState(false);
   const rowContext = useContext(TableRowContext);
-  let tdView;
-  if (!record) {
-    tdView = <td {...restProps}>{children}</td>;
-  } else {
+  
+  // Memoize style calculations
+  const style = useMemo(() => {
+    if (!record) return null;
     const rowColor = rowColorFn({
       currentRow: record,
       currentIndex: rowIndex,
@@ -579,7 +613,7 @@ function TableCellView(props: {
       currentRow: record,
     });
 
-    const style = {
+    return {
       background: cellColor || rowColor || columnStyle.background || columnsStyle.background,
       margin: columnStyle.margin || columnsStyle.margin,
       text: columnStyle.text || columnsStyle.text,
@@ -591,8 +625,14 @@ function TableCellView(props: {
       fontFamily: columnsStyle.fontFamily || columnStyle.fontFamily,
       fontStyle: columnsStyle.fontStyle || columnStyle.fontStyle,
       rowHeight: rowHeight,
-    }
-    let { background } = style;
+    };
+  }, [record, rowIndex, title, rowColorFn, rowHeightFn, cellColorFn, columnStyle, columnsStyle]);
+
+  let tdView;
+  if (!record) {
+    tdView = <td {...restProps}>{children}</td>;
+  } else {
+    let { background } = style!;
     if (rowContext.hover) {
       background = 'transparent';
     }
@@ -601,7 +641,7 @@ function TableCellView(props: {
       <TableTd
         {...restProps}
         $background={background}
-        $style={style}
+        $style={style!}
         $defaultThemeDetail={defaultTheme}
         $linkStyle={linkStyle}
         $isEditing={editing}
@@ -621,96 +661,115 @@ function TableCellView(props: {
       {tdView}
     </TableCellContext.Provider>
   );
-}
+});
 
-function TableRowView(props: any) {
+const TableRowView = React.memo((props: any) => {
   const [hover, setHover] = useState(false);
   const [selected, setSelected] = useState(false);
+
+  // Memoize event handlers
+  const handleMouseEnter = useCallback(() => setHover(true), []);
+  const handleMouseLeave = useCallback(() => setHover(false), []);
+  const handleFocus = useCallback(() => setSelected(true), []);
+  const handleBlur = useCallback(() => setSelected(false), []);
+
   return (
-    <TableRowContext.Provider value={{ hover: hover, selected: selected }}>
+    <TableRowContext.Provider value={{ hover, selected }}>
       <tr
         {...props}
         tabIndex={-1}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        onFocus={() => setSelected(true)}
-        onBlur={() => setSelected(false)}
-      ></tr>
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
     </TableRowContext.Provider>
   );
-}
+});
 
 /**
  * A table with adjustable column width, width less than 0 means auto column width
  */
-function ResizeableTable<RecordType extends object>(props: CustomTableProps<RecordType>) {
-  const [resizeData, setResizeData] = useState({
-    index: -1,
-    width: -1,
-  });
-  let allColumnFixed = true;
-  const { customLoading } = props;
+function ResizeableTableComp<RecordType extends object>(props: CustomTableProps<RecordType>) {
+  const {
+    columns,
+    viewModeResizable,
+    visibleResizables,
+    rowColorFn,
+    rowHeightFn,
+    columnsStyle,
+    size,
+    rowAutoHeight,
+    customLoading,
+    onCellClick,
+    ...restProps
+  } = props;
+  const [resizeData, setResizeData] = useState({ index: -1, width: -1 });
 
-  const columns = props.columns.map((col, index) => {
-    const { width, style, linkStyle, cellColorFn, ...restCol } = col;
-    const resizeWidth = (resizeData.index === index ? resizeData.width : col.width) ?? 0;
-    let colWidth: number | string = "auto";
-    let minWidth: number | string = COL_MIN_WIDTH;
-    if (typeof resizeWidth === "number" && resizeWidth > 0) {
-      minWidth = "unset";
-      colWidth = resizeWidth;
-    } else {
-      allColumnFixed = false;
+  // Memoize resize handlers
+  const handleResize = useCallback((width: number, index: number) => {
+    setResizeData({ index, width });
+  }, []);
+
+  const handleResizeStop = useCallback((width: number, index: number, onWidthResize?: (width: number) => void) => {
+    setResizeData({ index: -1, width: -1 });
+    if (onWidthResize) {
+      onWidthResize(width);
     }
-    return {
-      ...restCol,
-      RC_TABLE_INTERNAL_COL_DEFINE: {
-        style: {
-          minWidth: minWidth,
-          width: colWidth,
-        },
+  }, []);
+
+  // Memoize cell handlers
+  const createCellHandler = useCallback((col: CustomColumnType<RecordType>) => {
+    return (record: RecordType, index: number) => ({
+      record,
+      title: String(col.dataIndex),
+      rowColorFn,
+      rowHeightFn,
+      cellColorFn: col.cellColorFn,
+      rowIndex: index,
+      columnsStyle,
+      columnStyle: col.style,
+      linkStyle: col.linkStyle,
+      tableSize: size,
+      autoHeight: rowAutoHeight,
+      onClick: () => onCellClick(col.titleText, String(col.dataIndex)),
+      loading: customLoading,
+    });
+  }, [rowColorFn, rowHeightFn, columnsStyle, size, rowAutoHeight, onCellClick, customLoading]);
+
+  // Memoize header cell handlers
+  const createHeaderCellHandler = useCallback((col: CustomColumnType<RecordType>, index: number, resizeWidth: number) => {
+    return () => ({
+      width: resizeWidth,
+      title: col.titleText,
+      viewModeResizable,
+      onResize: (width: React.SyntheticEvent) => {
+        if (width) {
+          handleResize(Number(width), index);
+        }
       },
-      onCell: (record: RecordType, rowIndex: any) => ({
-        record,
-        title: String(col.dataIndex),
-        rowColorFn: props.rowColorFn,
-        rowHeightFn: props.rowHeightFn,
-        cellColorFn: cellColorFn,
-        rowIndex: rowIndex,
-        columnsStyle: props.columnsStyle,
-        columnStyle: style,
-        linkStyle,
-        tableSize: props.size,
-        autoHeight: props.rowAutoHeight,
-        onClick: () => {
-          props.onCellClick(col.titleText, String(col.dataIndex));
-        },
-        loading: customLoading,
-      }),
-      onHeaderCell: () => ({
-        width: resizeWidth,
-        title: col.titleText,
-        viewModeResizable: props.viewModeResizable,
-        onResize: (width: React.SyntheticEvent) => {
-          if (width) {
-            setResizeData({
-              index: index,
-              width: width as unknown as number,
-            });
-          }
-        },
-        onResizeStop: (e: React.SyntheticEvent, { size }: { size: { width: number } }) => {
-          setResizeData({
-            index: -1,
-            width: -1,
-          });
-          if (col.onWidthResize) {
-            col.onWidthResize(size.width);
-          }
-        },
-      }),
-    };
-  });
+      onResizeStop: (e: React.SyntheticEvent, { size }: { size: { width: number } }) => {
+        handleResizeStop(size.width, index, col.onWidthResize);
+      },
+    });
+  }, [viewModeResizable, handleResize, handleResizeStop]);
+
+  // Memoize columns to prevent unnecessary re-renders
+  const memoizedColumns = useMemo(() => {
+    return columns.map((col, index) => {
+      const { width, style, linkStyle, cellColorFn, onWidthResize, ...restCol } = col;
+      const resizeWidth = (resizeData.index === index ? resizeData.width : col.width) ?? 0;
+      
+      const column: ColumnType<RecordType> = {
+        ...restCol,
+        width: typeof resizeWidth === "number" && resizeWidth > 0 ? resizeWidth : undefined,
+        minWidth: typeof resizeWidth === "number" && resizeWidth > 0 ? undefined : COL_MIN_WIDTH,
+        onCell: (record: RecordType, index?: number) => createCellHandler(col)(record, index ?? 0),
+        onHeaderCell: () => createHeaderCellHandler(col, index, Number(resizeWidth))(),
+      };
+      return column;
+    });
+  }, [columns, resizeData, createCellHandler, createHeaderCellHandler]);
 
   return (
     <Table<RecordType>
@@ -723,18 +782,19 @@ function ResizeableTable<RecordType extends object>(props: CustomTableProps<Reco
           row: TableRowView,
         },
       }}
-      {...props}
+      {...restProps}
       pagination={false}
-      columns={columns}
+      columns={memoizedColumns}
       scroll={{
         x: COL_MIN_WIDTH * columns.length,
-        y: undefined,
       }}
-    ></Table>
+    />
   );
 }
+ResizeableTableComp.whyDidYouRender = true;
 
-ResizeableTable.whyDidYouRender = true;
+const ResizeableTable = React.memo(ResizeableTableComp) as typeof ResizeableTableComp;
+
 
 const createNewEmptyRow = (
   rowIndex: number,
@@ -749,11 +809,11 @@ const createNewEmptyRow = (
   return emptyRowData;
 }
 
-export function TableCompView(props: {
+export const TableCompView = React.memo((props: {
   comp: InstanceType<typeof TableImplComp>;
   onRefresh: (allQueryNames: Array<string>, setLoading: (loading: boolean) => void) => void;
   onDownload: (fileName: string) => void;
-}) {
+}) => {
   const [emptyRowsMap, setEmptyRowsMap] = useState<Record<string, RecordType>>({});
   const editorState = useContext(EditorContext);
   const currentTheme = useContext(ThemeContext)?.theme;
@@ -979,12 +1039,20 @@ export function TableCompView(props: {
         summaryRows={parseInt(summaryRows)}
         columns={columns}
         summaryRowStyle={summaryRowStyle}
+        dynamicColumn={dynamicColumn}
+        dynamicColumnConfig={dynamicColumnConfig}
       />
     );
   }
 
   if (antdColumns.length === 0) {
-    return <EmptyContent text={trans("table.emptyColumns")} />;
+    return (
+      <div>
+        {toolbar.position === "above" && !hideToolbar && toolbarView}
+        <EmptyContent text={trans("table.emptyColumns")} />
+        {toolbar.position === "below" && !hideToolbar && toolbarView}
+      </div>
+    );
   }
 
   const hideScrollbar = !showHorizontalScrollbar && !showVerticalScrollbar;
@@ -1074,4 +1142,4 @@ export function TableCompView(props: {
 
     </BackgroundColorContext.Provider>
   );
-}
+});

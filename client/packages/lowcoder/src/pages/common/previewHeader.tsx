@@ -26,6 +26,8 @@ import MobileOutlined from "@ant-design/icons/MobileOutlined";
 import TabletOutlined from "@ant-design/icons/TabletOutlined";
 import DesktopOutlined from "@ant-design/icons/DesktopOutlined";
 import { DeviceOrientation, DeviceType, EditorContext } from "@lowcoder-ee/comps/editorState";
+import { getBrandingSetting } from "@lowcoder-ee/redux/selectors/enterpriseSelectors";
+import { buildMaterialPreviewURL } from "@lowcoder-ee/util/materialUtils";
 
 const HeaderFont = styled.div<{ $bgColor: string }>`
   font-weight: 500;
@@ -111,10 +113,16 @@ const Wrapper = styled.div`
   }
 `;
 
+const BrandLogo = styled.img`
+  height: 28px;
+`
+
 export function HeaderProfile(props: { user: User }) {
   const { user } = props;
   const fetchingUser = useSelector(isFetchingUser);
   const templateId = useSelector(getTemplateId);
+  const isPublicApp = useSelector(isPublicApplication);
+
   if (fetchingUser) {
     return <Skeleton.Avatar shape="circle" size={28} />;
   }
@@ -122,7 +130,13 @@ export function HeaderProfile(props: { user: User }) {
     <div>
       {user.isAnonymous ? (
         !templateId ? (
-          <LoginBtn buttonType="primary" onClick={() => history.push(AUTH_LOGIN_URL)}>
+          <LoginBtn buttonType="primary" onClick={() => {
+            if (isPublicApp) {
+              window.top?.open('https://app.lowcoder.cloud/user/auth/login');
+            } else {
+              history.push(AUTH_LOGIN_URL)
+            }
+          }}>
             {trans("userAuth.login")}
           </LoginBtn>
         ) : null
@@ -141,14 +155,21 @@ const PreviewHeaderComp = () => {
   const isPublicApp = useSelector(isPublicApplication);
   const applicationId = useApplicationId();
   const templateId = useSelector(getTemplateId);
-  const brandingConfig = useSelector(getBrandingConfig);
+  const brandingSettings = useSelector(getBrandingSetting);
   const [permissionDialogVisible, setPermissionDialogVisible] = useState(false);
   const isViewMarketplaceMode = params.viewMode === 'view_marketplace' || isPublicApp;
 
   const headerStart = (
     <>
-      <StyledLink onClick={() => history.push(ALL_APPLICATIONS_URL)}>
-        <LogoIcon branding={true} />
+      <StyledLink onClick={() => !isPublicApp && history.push(ALL_APPLICATIONS_URL)}>
+        {/* <LogoIcon branding={true} /> */}
+        { brandingSettings?.config_set?.logo
+          ? (
+            Boolean(brandingSettings?.orgId)
+            ? <BrandLogo src={buildMaterialPreviewURL(brandingSettings?.config_set?.logo)} />
+            : <BrandLogo src={brandingSettings?.config_set?.logo} />
+          ) : <LogoIcon branding={true} />
+        }
       </StyledLink>
       {isViewMarketplaceMode && (
         <HeaderStartDropdown
@@ -157,7 +178,7 @@ const PreviewHeaderComp = () => {
         />
       )}
       {!isViewMarketplaceMode && (
-        <HeaderFont $bgColor={brandingConfig?.headerColor ?? "#2c2c2c"}>
+        <HeaderFont $bgColor={brandingSettings?.config_set?.appHeaderColor ?? "#2c2c2c"}>
           {application && application.name}
         </HeaderFont>
       )}
@@ -204,43 +225,51 @@ const PreviewHeaderComp = () => {
     </Wrapper>
   );
 
-  const headerMiddle = (
-    <>
-      {/* Devices */}
-      <Segmented<DeviceType>
-        options={[
-          { value: 'mobile', icon: <MobileOutlined /> },
-          { value: 'tablet', icon: <TabletOutlined /> },
-          { value: 'desktop', icon: <DesktopOutlined /> },
-        ]}
-        value={editorState.deviceType}
-        onChange={(value) => {
-          editorState.setDeviceType(value);
-        }}
-      />
+  const headerMiddle = useMemo(() => {
+    if (isPublicApp) return null;
 
-      {/* Orientation */}
-      {editorState.deviceType !== 'desktop' && (
-        <Segmented<DeviceOrientation>
+    return (
+      <>
+        {/* Devices */}
+        <Segmented<DeviceType>
           options={[
-            { value: 'portrait', label: "Portrait" },
-            { value: 'landscape', label: "Landscape" },
+            { value: 'mobile', icon: <MobileOutlined /> },
+            { value: 'tablet', icon: <TabletOutlined /> },
+            { value: 'desktop', icon: <DesktopOutlined /> },
           ]}
-          value={editorState.deviceOrientation}
+          value={editorState.deviceType}
           onChange={(value) => {
-            editorState.setDeviceOrientation(value);
+            editorState.setDeviceType(value);
           }}
         />
-      )}
-    </>
-  );
+
+        {/* Orientation */}
+        {editorState.deviceType !== 'desktop' && (
+          <Segmented<DeviceOrientation>
+            options={[
+              { value: 'portrait', label: "Portrait" },
+              { value: 'landscape', label: "Landscape" },
+            ]}
+            value={editorState.deviceOrientation}
+            onChange={(value) => {
+              editorState.setDeviceOrientation(value);
+            }}
+          />
+        )}
+      </>
+    );
+  }, [
+    isPublicApp,
+    editorState.deviceType,
+    editorState.deviceOrientation,
+  ]);
 
   return (
     <Header
       headerStart={headerStart}
       headerMiddle={headerMiddle}
       headerEnd={headerEnd}
-      style={{ backgroundColor: brandingConfig?.headerColor }}
+      style={{ backgroundColor: brandingSettings?.config_set?.appHeaderColor }}
     />
   );
 };

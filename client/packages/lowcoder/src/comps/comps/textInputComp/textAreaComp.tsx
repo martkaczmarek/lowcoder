@@ -33,6 +33,7 @@ import { trans } from "i18n";
 import { RefControl } from "comps/controls/refControl";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { blurMethod, focusWithOptions } from "comps/utils/methodUtils";
+import { NumberControl } from "comps/controls/codeControl";
 
 import React, { useContext, useEffect } from "react";
 import { EditorContext } from "comps/editorState";
@@ -52,6 +53,9 @@ const Wrapper = styled.div<{
   height: 100% !important;
   
   .ant-input { 
+    height:100% !important;
+  }
+  .ant-input-affix-wrapper {
     height:100% !important;
   }
 
@@ -77,7 +81,8 @@ let TextAreaTmpComp = (function () {
     labelStyle: styleControl(LabelStyle ,'labelStyle' ),
     textAreaScrollBar: withDefault(BoolControl, false),
     inputFieldStyle: styleControl(InputLikeStyle , 'inputFieldStyle'),
-    animationStyle: styleControl(AnimationStyle, 'animationStyle')
+    animationStyle: styleControl(AnimationStyle, 'animationStyle'),
+    tabIndex: NumberControl
   };
   return new UICompBuilder(childrenMap, (props) => {
     const [inputProps, validateState] = useTextInputProps(props);
@@ -93,6 +98,7 @@ let TextAreaTmpComp = (function () {
             allowClear={props.allowClear}
             style={{ height: "100% !important", resize: "vertical" }}
             $style={props.inputFieldStyle}
+            tabIndex={typeof props.tabIndex === 'number' ? props.tabIndex : undefined}
           />
         </Wrapper>
       ),
@@ -125,6 +131,7 @@ let TextAreaTmpComp = (function () {
             <Section name={sectionNames.advanced}>
               {allowClearPropertyView(children)}
               {readOnlyPropertyView(children)}
+              {children.tabIndex.propertyView({ label: trans("prop.tabIndex") })}
             </Section>
             <TextInputValidationSection {...children} /></>
         )}

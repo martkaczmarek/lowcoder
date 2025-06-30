@@ -150,7 +150,13 @@ export default function ProfileDropdown(props: DropDownProps) {
       dispatch(profileSettingModalVisible(true));
     } else if (e.key === "logout") {
       // logout
-      dispatch(logoutAction({}));
+      const organizationId = localStorage.getItem('lowcoder_login_orgId');
+      if (organizationId) {
+        localStorage.removeItem('lowcoder_login_orgId');
+      }
+      dispatch(logoutAction({
+        organizationId: organizationId || undefined,
+      }));
     } else if (e.keyPath.includes("switchOrg")) {
       if (e.key === "newOrganization") {
         // create new organization
@@ -218,7 +224,7 @@ export default function ProfileDropdown(props: DropDownProps) {
     const switchOrgMenu = {
       key: 'switchOrg',
       label: trans("profile.switchOrg"),
-      popupOffset: [4, -12],
+      popupOffset: checkIsMobile(window.innerWidth) ? [-200, 36] : [4, -12],
       children: [
         {
           key: 'joinedOrg',
@@ -247,7 +253,7 @@ export default function ProfileDropdown(props: DropDownProps) {
   return (
     <>
       <StyledDropdown
-        dropdownRender={() => menu}
+        popupRender={() => menu}
         trigger={["click"]}
       >
         <div>

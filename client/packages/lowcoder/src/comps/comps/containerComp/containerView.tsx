@@ -54,7 +54,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useResizeDetector } from "react-resize-detector";
+import { ResizePayload, useResizeDetector } from "react-resize-detector";
 import styled from "styled-components";
 import { checkIsMobile } from "util/commonUtils";
 import { ExternalEditorContext } from "util/context/ExternalEditorContext";
@@ -326,7 +326,7 @@ const GridItemWrapper = React.memo(React.forwardRef(
     const editorState = useContext(EditorContext);
     const { children, ...divProps } = props;
     return (
-      <ItemWrapper ref={ref} $disableInteract={editorState.disableInteract} {...divProps}>
+      <ItemWrapper ref={ref} $disableInteract={editorState?.disableInteract} {...divProps}>
         {props.children}
       </ItemWrapper>
     );
@@ -350,9 +350,9 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
   const [currentRowHeight, setRowHeight] = useState(positionParams.rowHeight || DEFAULT_ROW_HEIGHT);
   const editorState = useContext(EditorContext);
   const { readOnly } = useContext(ExternalEditorContext);
-  const appSettingsComp = editorState.getAppSettingsComp().getView();
+  const appSettingsComp = editorState?.getAppSettingsComp().getView();
 
-  const maxWidth = useMemo(() => appSettingsComp.maxWidth, [appSettingsComp.maxWidth]);
+  const maxWidth = useMemo(() => appSettingsComp?.maxWidth, [appSettingsComp?.maxWidth]);
 
   // Falk: TODO: Here we can define the inner grid columns dynamically
   const defaultGrid = useMemo(() => {
@@ -372,10 +372,10 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
       getExtraLayout(
         props.items,
         props.layout,
-        editorState.selectedCompNames,
+        editorState?.selectedCompNames,
         props.dragSelectedComps
       ),
-    [props.items, props.layout, editorState.selectedCompNames, props.dragSelectedComps]
+    [props.items, props.layout, editorState?.selectedCompNames, props.dragSelectedComps]
   );
 
   const [containerSelectNames, setContainerSelectNames] = useState<Set<string>>(new Set([]));
@@ -392,13 +392,23 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
   }, [extraLayout, containerSelectNames]);
 
   const canAddSelect = useMemo(
-    () => _.size(containerSelectNames) === _.size(editorState.selectedCompNames),
-    [containerSelectNames, editorState.selectedCompNames]
+    () => _.size(containerSelectNames) === _.size(editorState?.selectedCompNames),
+    [containerSelectNames, editorState?.selectedCompNames]
   );
 
   const dispatchPositionParamsTimerRef = useRef(0);
+  
+  // Add cleanup for timeout
+  useEffect(() => {
+    return () => {
+      if (dispatchPositionParamsTimerRef.current) {
+        window.clearTimeout(dispatchPositionParamsTimerRef.current);
+      }
+    };
+  }, []);
+
   const onResize = useCallback(
-    (width?: number, height?: number) => {
+    ({width, height}: ResizePayload) => {
       if(!width || !height) return;
 
       if (width !== positionParams.containerWidth) {
@@ -439,22 +449,39 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
       isRowCountLocked,
       onPositionParamsChange,
       onRowCountChange,
-      positionParams,
+      JSON.stringify(positionParams),
+      JSON.stringify(props.containerPadding),
       props.dispatch,
-      props.containerPadding,
     ]
   );
-  const setSelectedNames = useCallback(
-    (names: Set<string>) => {
-      editorState.setSelectedCompNames(names);
-    },
-    [editorState.setSelectedCompNames]
-  );
 
+  // Cleanup resize detector
   const { width, ref } = useResizeDetector({
     onResize,
     handleHeight: isRowCountLocked,
+    refreshMode: 'debounce',
+    refreshRate: 100,
   });
+
+  const setSelectedNames = useCallback(
+    (names: Set<string>) => {
+      editorState?.setSelectedCompNames(names);
+    },
+    [editorState?.setSelectedCompNames]
+  );
+
+  // Cleanup item references when items are removed
+  useEffect(() => {
+    const currentKeys = new Set(Object.keys(props.items));
+    const refKeys = new Set(Object.keys(itemViewRef.current));
+    
+    // Remove references to items that no longer exist
+    refKeys.forEach(key => {
+      if (!currentKeys.has(key)) {
+        delete itemViewRef.current[key];
+      }
+    });
+  }, [props.items]);
 
   const itemViewRef = useRef<GirdItemViewRecord>({});
   const itemViews = useMemo(() => {
@@ -495,12 +522,12 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
 
   return (
     <ReactGridLayout
-      innerRef={ref}
+      innerRef={ref as RefObject<HTMLDivElement>}
       className={props.className}
       style={props.style}
       scrollContainerRef={props.scrollContainerRef}
       width={width ?? 0}
-      showGridLines={editorState.showGridLines() && (isDroppable || enableGridLines)}
+      showGridLines={editorState?.showGridLines() && (isDroppable || enableGridLines)}
       isRowCountLocked={isRowCountLocked}
       isDraggable={isDraggable}
       isResizable={isResizable}
@@ -517,7 +544,7 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
             : defaultLayout(compType);
           return {
             size: compLayout ?? defaultSize,
-            positionParams: editorState.canvasPositionParams(),
+            positionParams: editorState?.canvasPositionParams(),
           };
         }
       }}
@@ -533,18 +560,18 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
         const items = _.pick(props.items, Object.keys(layoutItems));
         draggingUtils.setData("sourceDispatch", props.dispatch);
         draggingUtils.setData<Record<string, GridItem>>("items", items);
-        editorState.setDragging(true);
+        editorState?.setDragging(true);
         const names = Object.values(items).map((item) => item.name);
-        editorState.setSelectedCompNames(new Set(names));
+        editorState?.setSelectedCompNames(new Set(names));
       }}
       onFlyDrop={(layout, items) => {
         onFlyDrop(layout, items, props.dispatch);
       }}
       onResizeStart={(_a, _b, _c, _d, event) => {
         event.stopPropagation();
-        editorState.setDragging(true);
+        editorState?.setDragging(true);
       }}
-      onResizeStop={() => editorState.setDragging(false)}
+      onResizeStop={() => editorState?.setDragging(false)}
       margin={[0, 0]}
       containerPadding={props.containerPadding}
       fixedRowCount={props.emptyRows !== DEFAULT_ROW_COUNT}
@@ -558,12 +585,12 @@ export const InnerGrid = React.memo((props: ViewPropsWithSelect) => {
       minHeight={props.minHeight}
       bgColor={props.bgColor}
       radius={props.radius}
-      hintPlaceholder={!editorState.isDragging && !readOnly && props.hintPlaceholder}
+      hintPlaceholder={!editorState?.isDragging && !readOnly && props.hintPlaceholder}
       selectedSize={_.size(containerSelectNames)}
       clickItem={clickItem}
       isCanvas={props.isCanvas}
       showName={props.showName}
-      disableDirectionKey={editorState.isDragging || readOnly}
+      disableDirectionKey={editorState?.isDragging || readOnly}
     >
       {itemViews}
     </ReactGridLayout>

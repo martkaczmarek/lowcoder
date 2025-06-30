@@ -35,7 +35,7 @@ import { checkIsMobile } from "util/commonUtils";
 import { messageInstance } from "lowcoder-design/src/components/GlobalInstances";
 import { BoolControl } from "comps/controls/boolControl";
 import { PositionControl } from "comps/controls/dropdownControl";
-import SliderControl from "@lowcoder-ee/comps/controls/sliderControl";
+import { SliderControl } from "@lowcoder-ee/comps/controls/sliderControl";
 import { getBackgroundStyle } from "@lowcoder-ee/util/styleUtils";
 
 const EVENT_OPTIONS = [
@@ -245,7 +245,7 @@ const TabbedContainer = (props: TabbedContainerProps) => {
       label,
       key: tab.key,                                                                            
       forceRender: !destroyInactiveTab,
-      destroyInactiveTabPane: destroyInactiveTab,
+      destroyInactiveTab: destroyInactiveTab,
       children: (
         <BackgroundColorContext.Provider value={bodyStyle.background}>
           <ScrollBar style={{ height: props.autoHeight ? "auto" : "100%", margin: "0px", padding: "0px" }} hideScrollbar={!props.showVerticalScrollbar} overflow={props.autoHeight ? 'hidden':'scroll'}>

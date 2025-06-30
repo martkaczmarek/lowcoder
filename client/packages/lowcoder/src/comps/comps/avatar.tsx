@@ -25,6 +25,7 @@ import { IconControl } from "comps/controls/iconControl";
 import {
   clickEvent,
   eventHandlerControl,
+  doubleClickEvent,
 } from "../controls/eventHandlerControl";
 import { Avatar, AvatarProps, Badge, Dropdown, Menu } from "antd";
 import { LeftRightControl, dropdownControl } from "../controls/dropdownControl";
@@ -34,6 +35,8 @@ import { BadgeBasicSection, badgeChildren } from "./badgeComp/badgeConstants";
 import { DropdownOptionControl } from "../controls/optionsControl";
 import { ReactElement, useContext, useEffect } from "react";
 import { CompNameContext, EditorContext } from "../editorState";
+import { useCompClickEventHandler } from "@lowcoder-ee/comps/utils/useCompClickEventHandler";
+
 
 const AvatarWrapper = styled(Avatar) <AvatarProps & { $cursorPointer?: boolean, $style: AvatarStyleType }>`
   background: ${(props) => props.$style.background};
@@ -41,12 +44,12 @@ const AvatarWrapper = styled(Avatar) <AvatarProps & { $cursorPointer?: boolean, 
   cursor: ${(props) => props.$cursorPointer ? 'pointer' : ''};
 `;
 
-const Wrapper = styled.div <{ iconSize: number, labelPosition: string,$style: AvatarContainerStyleType}>`
+const Wrapper = styled.div <{ $iconSize: number, $labelPosition: string,$style: AvatarContainerStyleType}>`
 display: flex;
 width: 100%;
 height: 100%;
 align-items: center;
-flex-direction: ${(props) => props.labelPosition === 'left' ? 'row' : 'row-reverse'};
+flex-direction: ${(props) => props.$labelPosition === 'left' ? 'row' : 'row-reverse'};
 ${(props) => {
     return (
       props.$style && {
@@ -57,14 +60,14 @@ ${(props) => {
   }}
 `
 
-const LabelWrapper = styled.div<{ iconSize: number, alignmentPosition: string }>`
-width: calc(100% - ${(props) => props.iconSize}px);
+const LabelWrapper = styled.div<{ $iconSize: number, $alignmentPosition: string }>`
+width: calc(100% - ${(props) => props.$iconSize}px);
 display: flex;
 padding-left: 5px;
 padding-right: 5px;
 flex-direction: column;
 justify-content: flex-end;
-align-items: ${(props) => props.alignmentPosition === 'left' ? 'flex-start' : 'flex-end'};
+align-items: ${(props) => props.$alignmentPosition === 'left' ? 'flex-start' : 'flex-end'};
 `
 const LabelSpan = styled.span<{ $style:AvatarLabelStyleType }>`
 max-width: 100%;
@@ -106,7 +109,7 @@ padding: ${props=>props.$style.padding};
 background: ${props=>props.$style.background};
 text-decoration: ${props => props.$style.textDecoration};
 `
-const EventOptions = [clickEvent] as const;
+const EventOptions = [clickEvent, doubleClickEvent] as const;
 const sharpOptions = [
   { label: trans("avatarComp.square"), value: "square" },
   { label: trans("avatarComp.circle"), value: "circle" },
@@ -140,6 +143,8 @@ const childrenMap = {
 const AvatarView = (props: RecordConstructorToView<typeof childrenMap>) => {
   const { shape, title, src, iconSize } = props;
   const comp = useContext(EditorContext).getUICompByName(useContext(CompNameContext));
+  const handleClickEvent = useCompClickEventHandler({onEvent: props.onEvent})
+  
   // const eventsCount = comp ? Object.keys(comp?.children.comp.children.onEvent.children).length : 0;
   const hasIcon = props.options.findIndex((option) => (option.prefixIcon as ReactElement)?.props.value) > -1;
   const items = props.options
@@ -164,9 +169,9 @@ const AvatarView = (props: RecordConstructorToView<typeof childrenMap>) => {
       placement={props.labelPosition === 'left' ? "bottomLeft" : "bottomRight"}
       arrow
       disabled={!props.enableDropdownMenu}
-      dropdownRender={() => menu}
+      popupRender={() => menu}
     >
-      <Wrapper iconSize={props.iconSize} labelPosition={props.labelPosition} $style={props.style}>
+      <Wrapper $iconSize={props.iconSize} $labelPosition={props.labelPosition} $style={props.style}>
         <Badge
           count={props.badgeCount.value}
           dot={props.badgeType === 'dot'}
@@ -181,13 +186,12 @@ const AvatarView = (props: RecordConstructorToView<typeof childrenMap>) => {
             shape={shape}
             $style={props.avatarStyle}
             src={src.value}
-            // $cursorPointer={eventsCount > 0}
-            onClick={() => props.onEvent("click")}
+            onClick={handleClickEvent}
           >
             {title.value}
           </AvatarWrapper>
         </Badge>
-        <LabelWrapper iconSize={props.iconSize} alignmentPosition={props.alignmentPosition}>
+        <LabelWrapper $iconSize={props.iconSize} $alignmentPosition={props.alignmentPosition}>
           <LabelSpan $style={props.labelStyle}>{props.avatarLabel.value}</LabelSpan>
           <CaptionSpan $style={props.captionStyle}>{props.avatarCatption.value}</CaptionSpan>
         </LabelWrapper>

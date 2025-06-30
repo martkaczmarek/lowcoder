@@ -1,5 +1,6 @@
 import { CellProps } from "components/table/EditableCell";
 import { DateTimeComp } from "comps/comps/tableComp/column/columnTypeComps/columnDateTimeComp";
+import { TimeComp } from "./columnTypeComps/columnTimeComp";
 import { ButtonComp } from "comps/comps/tableComp/column/simpleColumnTypeComps";
 import { withType } from "comps/generators";
 import { trans } from "i18n";
@@ -68,6 +69,11 @@ const actionOptions = [
     value: "image",
   },
   {
+    label: trans("table.time"),
+    value: "time",
+  },
+
+  {
     label: trans("table.date"),
     value: "date",
   },
@@ -116,6 +122,7 @@ export const ColumnTypeCompMap = {
   rating: RatingComp,
   progress: ProgressComp,
   date: DateComp,
+  time: TimeComp,
 };
 
 type ColumnTypeMapType = typeof ColumnTypeCompMap;
@@ -134,6 +141,18 @@ export class ColumnTypeComp extends TypedColumnTypeComp {
     };
   }
 
+  private handleTypeChange: (value: ColumnTypeKeys) => void = (value) => {
+    // Keep the previous text value, some components do not have text, the default value is currentCell
+    let textRawData = "{{currentCell}}";
+    if (this.children.comp.children.hasOwnProperty("text")) {
+      textRawData = (this.children.comp.children as any).text.toJsonValue();
+    }
+    this.dispatchChangeValueAction({
+      compType: value,
+      comp: { text: textRawData },
+    } as any);
+  }
+
   override getPropertyView() {
     return (
       <>
@@ -142,17 +161,7 @@ export class ColumnTypeComp extends TypedColumnTypeComp {
           value={this.children.compType.getView()}
           options={actionOptions}
           label={trans("table.columnType")}
-          onChange={(value) => {
-            // Keep the previous text value, some components do not have text, the default value is currentCell
-            let textRawData = "{{currentCell}}";
-            if (this.children.comp.children.hasOwnProperty("text")) {
-              textRawData = (this.children.comp.children as any).text.toJsonValue();
-            }
-            this.dispatchChangeValueAction({
-              compType: value,
-              comp: { text: textRawData },
-            } as any);
-          }}
+          onChange={this.handleTypeChange}
         />
         {this.children.comp.getPropertyView()}
       </>
